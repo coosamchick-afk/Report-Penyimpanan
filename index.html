@@ -35,6 +35,14 @@
     </div>
 
     <script>
+        let isUploading = false;
+
+window.addEventListener('beforeunload', function (e) {
+    if (isUploading) {
+        e.preventDefault();
+        e.returnValue = ''; // Memunculkan peringatan bawaan browser saat tab akan ditutup
+    }
+});
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbwaCh4hpe7BpWg3jyy-dWY900N2td-V-RQnl0Ax9ehGifFyVIw9c7x_Bepz53F_tC4i/exec'; // <-- GANTI DENGAN URL WEB APP GAS ANDA
         let bahanData = [];
 
@@ -122,25 +130,47 @@
         }
 
         async function submitReport() {
-            const store = document.getElementById('store').value;
-            if (!store) return Swal.fire({ icon: 'warning', title: 'Oops!', text: 'Pilih Asal Store terlebih dahulu.' });
+    const store = document.getElementById('store').value;
+    if (!store) return Swal.fire({ icon: 'warning', title: 'Oops!', text: 'Pilih Asal Store terlebih dahulu.' });
 
-            // Pengumpulan File
-            let filesToUpload = [];
-            for (let bIdx = 0; bIdx < bahanData.length; bIdx++) {
-                const b = bahanData[bIdx];
-                for (let dIdx = 0; dIdx < b.details.length; dIdx++) {
-                    const fileInput = document.getElementById(`file_${bIdx}_${dIdx}`);
-                    if (!fileInput.files[0]) {
-                        return Swal.fire({ icon: 'warning', title: 'Belum Lengkap', text: `Foto untuk detail "${b.details[dIdx]}" pada bahan ${b.bahan} belum diisi!` });
-                    }
-                    filesToUpload.push({
-                        bahan: b.bahan,
-                        detail: b.details[dIdx],
-                        file: fileInput.files[0]
-                    });
-                }
-            }
+    let filesToUpload = [];
+    for (let bIdx = 0; bIdx < bahanData.length; bIdx++) {
+        // ... (kode pengumpulan file tetap sama) ...
+    }
+
+    const totalFiles = filesToUpload.length;
+    let successUploads = [];
+    
+    Swal.fire({
+        title: 'Sedang Mengunggah...',
+        // ... (kode swal UI tetap sama) ...
+    });
+
+    // AKTIFKAN PERINGATAN KELUAR HALAMAN
+    isUploading = true; 
+
+    // PROSES UPLOAD SATU PER SATU
+    for (let i = 0; i < totalFiles; i++) {
+        try {
+            // ... (kode proses kompresi & fetch tetap sama) ...
+        } catch (error) {
+            isUploading = false; // MATIKAN PERINGATAN JIKA ERROR
+            return Swal.fire({ icon: 'error', title: 'Upload Terhenti', text: `Terjadi kendala pada file ${i + 1}. Pesan: ${error.message}` });
+        }
+    }
+
+    // MATIKAN PERINGATAN KARENA SUDAH SELESAI
+    isUploading = false; 
+
+    Swal.fire({
+        icon: 'success',
+        title: 'Berhasil!',
+        text: 'Semua foto berhasil diunggah ke server.',
+        confirmButtonText: 'Buat Pesan WA'
+    }).then(() => {
+        generateWALink(store, successUploads);
+    });
+}
 
             const totalFiles = filesToUpload.length;
             let successUploads = [];
