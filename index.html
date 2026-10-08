@@ -3,95 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Report Penyimpanan</title>
+    <title>Sistem Report Penyimpanan</title>
+    <!-- Tailwind CSS untuk tampilan profesional -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SweetAlert2 untuk Popup profesional -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; max-width: 500px; margin: auto; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        select, input[type="file"] { width: 100%; padding: 10px; margin-bottom: 10px; }
-        .detail-item { background: #f9f9f9; padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 5px; }
-        button { background: #007bff; color: white; border: none; padding: 12px; width: 100%; cursor: pointer; border-radius: 5px; font-size: 16px; }
-        button:hover { background: #0056b3; }
-        #wa-btn { background: #25D366; display: none; margin-top: 15px; text-align: center; text-decoration: none; padding: 12px; border-radius: 5px; color: white; font-weight: bold; }
-        #progress-container { width: 100%; background: #e0e0e0; border-radius: 5px; margin-top: 15px; display: none; }
-        #progress-bar { width: 0%; height: 20px; background: #4caf50; border-radius: 5px; text-align: center; color: white; line-height: 20px; font-size: 12px; }
+        body { background-color: #f3f4f6; }
+        .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px;}
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body>
+<body class="text-gray-800 antialiased font-sans">
 
-    <h2>Form Report Penyimpanan</h2>
+    <div class="max-w-3xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="bg-white shadow rounded-lg mb-6 p-6 border-t-4 border-blue-600">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Form Report Penyimpanan</h2>
+            <p class="text-gray-500 text-sm mb-4">Harap lengkapi semua foto detail untuk setiap bahan yang tersedia.</p>
+            
+            <div class="mb-4">
+                <label for="store" class="block text-sm font-semibold text-gray-700 mb-2">Asal Store</label>
+                <select id="store" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
+                    <option value="">-- Sedang memuat data store... --</option>
+                </select>
+            </div>
+        </div>
 
-    <div class="form-group">
-        <label for="store">Asal Store:</label>
-        <select id="store" required>
-            <option value="">-- Pilih Store --</option>
-        </select>
+        <!-- Container untuk List Bahan -->
+        <div id="bahan-container" class="space-y-6">
+            <!-- Data bahan akan dirender di sini -->
+        </div>
+
+        <!-- Tombol Aksi -->
+        <div class="mt-8 mb-12">
+            <button id="submit-btn" onclick="submitReport()" style="display:none;" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-300">
+                Submit Report Penyimpanan
+            </button>
+            <a id="wa-btn" href="#" target="_blank" style="display:none;" class="w-full mt-4 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow-md text-center transition duration-300 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 0c-6.627 0-12.015 5.385-12.015 12.013 0 2.124.553 4.195 1.603 6.015l-1.704 6.223 6.368-1.67c1.745.945 3.722 1.442 5.748 1.442 6.626 0 12.014-5.385 12.014-12.012 0-6.628-5.388-12.013-12.014-12.013zm0 22.06c-1.802 0-3.565-.486-5.112-1.405l-.367-.217-3.792.994.996-3.696-.237-.378c-1.01-1.615-1.543-3.486-1.543-5.347 0-5.545 4.512-10.055 10.055-10.055 5.542 0 10.054 4.51 10.054 10.055s-4.512 10.05-10.054 10.05z"/></svg>
+                Kirim Laporan via WhatsApp
+            </a>
+        </div>
     </div>
-
-    <div class="form-group">
-        <label for="bahan">Bahan:</label>
-        <select id="bahan" required>
-            <option value="">-- Pilih Bahan --</option>
-        </select>
-    </div>
-
-    <div id="details-container"></div>
-
-    <div id="progress-container">
-        <div id="progress-bar">0%</div>
-    </div>
-
-    <button id="submit-btn" style="display:none;" onclick="submitReport()">Submit Report</button>
-    <a id="wa-btn" href="#" target="_blank">Share ke WhatsApp</a>
 
     <script>
-        const GAS_URL = 'https://script.google.com/macros/s/AKfycbwaCh4hpe7BpWg3jyy-dWY900N2td-V-RQnl0Ax9ehGifFyVIw9c7x_Bepz53F_tC4i/exec'; // <-- GANTI DENGAN URL WEB APP ANDA
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbwaCh4hpe7BpWg3jyy-dWY900N2td-V-RQnl0Ax9ehGifFyVIw9c7x_Bepz53F_tC4i/exec'; // <-- GANTI DENGAN URL WEB APP GAS ANDA
         let bahanData = [];
 
-        // Load awal data Store dan Bahan
+        // Load awal data
         window.onload = async function() {
             try {
-                const storeRes = await fetch(GAS_URL + '?action=getStores');
-                const stores = await storeRes.json();
-                stores.forEach(s => {
-                    document.getElementById('store').innerHTML += `<option value="${s}">${s}</option>`;
+                Swal.fire({
+                    title: 'Memuat Data',
+                    text: 'Sedang mensinkronisasi data dari spreadsheet...',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); }
                 });
 
-                const bahanRes = await fetch(GAS_URL + '?action=getBahan');
-                bahanData = await bahanRes.json();
-                bahanData.forEach((b, index) => {
-                    document.getElementById('bahan').innerHTML += `<option value="${index}">${b.bahan}</option>`;
+                const [storeRes, bahanRes] = await Promise.all([
+                    fetch(GAS_URL + '?action=getStores'),
+                    fetch(GAS_URL + '?action=getBahan')
+                ]);
+
+                const stores = await storeRes.json();
+                const storeSelect = document.getElementById('store');
+                storeSelect.innerHTML = '<option value="">-- Pilih Store --</option>';
+                stores.forEach(s => {
+                    storeSelect.innerHTML += `<option value="${s}">${s}</option>`;
                 });
+
+                bahanData = await bahanRes.json();
+                renderBahan();
+                Swal.close();
+
             } catch (err) {
-                alert('Gagal memuat data dari server.');
+                Swal.fire({ icon: 'error', title: 'Gagal', text: 'Gagal memuat data dari server. Pastikan URL GAS benar dan koneksi internet stabil.' });
             }
         };
 
-        // Render input foto berdasarkan detail bahan yang dipilih
-        document.getElementById('bahan').addEventListener('change', function() {
-            const container = document.getElementById('details-container');
-            const submitBtn = document.getElementById('submit-btn');
-            container.innerHTML = '';
+        // Render form input file untuk semua bahan sekaligus
+        function renderBahan() {
+            const container = document.getElementById('bahan-container');
+            let html = '';
             
-            if (this.value === "") {
-                submitBtn.style.display = 'none';
-                return;
-            }
+            if(bahanData.length === 0) return;
 
-            const selectedBahan = bahanData[this.value];
-            selectedBahan.details.forEach((detail, i) => {
-                container.innerHTML += `
-                    <div class="detail-item">
-                        <label>${detail}</label>
-                        <!-- capture="environment" untuk langsung membuka kamera HP -->
-                        <input type="file" id="file_${i}" accept="image/*" capture="environment" required>
-                    </div>
-                `;
+            bahanData.forEach((b, bIdx) => {
+                html += `
+                <div class="bg-white p-5 rounded-lg shadow border border-gray-100">
+                    <h3 class="font-bold text-lg text-blue-800 border-b-2 border-blue-100 pb-2 mb-4">📦 ${b.bahan}</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+                
+                b.details.forEach((detail, dIdx) => {
+                    html += `
+                    <div class="bg-gray-50 p-4 rounded-md border border-gray-200">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">📸 ${detail}</label>
+                        <input type="file" id="file_${bIdx}_${dIdx}" accept="image/*" capture="environment" 
+                               class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 transition">
+                    </div>`;
+                });
+                
+                html += `</div></div>`;
             });
-            submitBtn.style.display = 'block';
-        });
+            
+            container.innerHTML = html;
+            document.getElementById('submit-btn').style.display = 'block';
+        }
 
-        // Fungsi kompresi gambar (Client-side)
+        // Fungsi kompresi gambar
         function compressImage(file) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -99,15 +119,16 @@
                     const img = new Image();
                     img.onload = function() {
                         const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 800; // Resize resolusi
-                        const scaleSize = MAX_WIDTH / img.width;
-                        canvas.width = MAX_WIDTH;
+                        const MAX_WIDTH = 800; 
+                        let scaleSize = MAX_WIDTH / img.width;
+                        if(scaleSize > 1) scaleSize = 1; // Jangan perbesar gambar jika aslinya kecil
+                        
+                        canvas.width = img.width * scaleSize;
                         canvas.height = img.height * scaleSize;
                         
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                         
-                        // Kompresi ke format JPEG kualitas 60%
                         const base64 = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
                         resolve(base64);
                     }
@@ -117,85 +138,120 @@
             });
         }
 
+        // Proses Submit (Validasi, Kompresi, dan Upload)
         async function submitReport() {
             const store = document.getElementById('store').value;
-            const bahanIndex = document.getElementById('bahan').value;
-            if (!store || bahanIndex === "") return alert("Mohon lengkapi Store dan Bahan!");
-
-            const selectedBahan = bahanData[bahanIndex];
-            const reports = [];
-
-            // Proses semua file dan kompresi
-            for (let i = 0; i < selectedBahan.details.length; i++) {
-                const fileInput = document.getElementById(`file_${i}`);
-                if (!fileInput.files[0]) return alert(`Foto untuk "${selectedBahan.details[i]}" wajib diisi!`);
-                
-                const base64Str = await compressImage(fileInput.files[0]);
-                reports.push({
-                    detail: selectedBahan.details[i],
-                    imageBase64: base64Str,
-                    filename: `Report_${store}_${selectedBahan.bahan}_${i}.jpg`
-                });
+            if (!store) {
+                return Swal.fire({ icon: 'warning', title: 'Oops!', text: 'Mohon pilih Asal Store terlebih dahulu.' });
             }
 
-            const payload = {
-                store: store,
-                bahan: selectedBahan.bahan,
-                reports: reports
-            };
+            const reports = [];
+            let missingPhoto = false;
 
-            // Setup Progress Bar menggunakan XMLHttpRequest (karena fetch API tidak mendukung upload progress natively)
-            const progressContainer = document.getElementById('progress-container');
-            const progressBar = document.getElementById('progress-bar');
-            progressContainer.style.display = 'block';
-            document.getElementById('submit-btn').disabled = true;
-
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', GAS_URL, true);
-            xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8'); // GAS butuh text/plain untuk postData.contents
-
-            xhr.upload.onprogress = function(e) {
-                if (e.lengthComputable) {
-                    const percentComplete = Math.round((e.loaded / e.total) * 100);
-                    progressBar.style.width = percentComplete + '%';
-                    progressBar.innerText = percentComplete + '%';
-                }
-            };
-
-            xhr.onload = function() {
-                if (xhr.status === 200) {
-                    const response = JSON.parse(xhr.responseText);
-                    if (response.status === 'success') {
-                        alert("Report Berhasil Disubmit!");
-                        generateWALink(response);
-                    } else {
-                        alert("Error: " + response.message);
+            // 1. Validasi File (Pastikan semua difoto)
+            for (let bIdx = 0; bIdx < bahanData.length; bIdx++) {
+                const b = bahanData[bIdx];
+                for (let dIdx = 0; dIdx < b.details.length; dIdx++) {
+                    const fileInput = document.getElementById(`file_${bIdx}_${dIdx}`);
+                    if (!fileInput.files[0]) {
+                        missingPhoto = true;
+                        break;
                     }
                 }
-                document.getElementById('submit-btn').disabled = false;
-            };
+                if(missingPhoto) break;
+            }
 
-            xhr.onerror = function() {
-                alert("Terjadi kesalahan saat submit.");
-                document.getElementById('submit-btn').disabled = false;
-            };
+            if (missingPhoto) {
+                return Swal.fire({ icon: 'warning', title: 'Data Belum Lengkap', text: 'Mohon lampirkan semua foto untuk setiap detail bahan.' });
+            }
 
-            xhr.send(JSON.stringify(payload));
+            // 2. Tampilkan Loading Awal
+            Swal.fire({
+                title: 'Memproses Foto...',
+                text: 'Sedang mengompresi ukuran foto agar pengiriman cepat.',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            // 3. Proses Kompresi
+            let processedCount = 0;
+            const totalFiles = bahanData.reduce((acc, curr) => acc + curr.details.length, 0);
+
+            for (let bIdx = 0; bIdx < bahanData.length; bIdx++) {
+                const b = bahanData[bIdx];
+                for (let dIdx = 0; dIdx < b.details.length; dIdx++) {
+                    const fileInput = document.getElementById(`file_${bIdx}_${dIdx}`);
+                    const base64Str = await compressImage(fileInput.files[0]);
+                    
+                    reports.push({
+                        bahan: b.bahan,
+                        detail: b.details[dIdx],
+                        imageBase64: base64Str,
+                        filename: `Report_${store}_${b.bahan}_${dIdx}.jpg`
+                    });
+                    
+                    processedCount++;
+                    Swal.update({ text: `Mengompresi foto ${processedCount} dari ${totalFiles}...` });
+                }
+            }
+
+            // 4. Proses Upload ke Backend
+            Swal.update({ title: 'Menyimpan ke Server...', text: 'Mengirim dan menyusun data ke Google Drive & Spreadsheet, mohon tunggu beberapa saat.' });
+
+            try {
+                const response = await fetch(GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ store: store, reports: reports })
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: 'Semua report berhasil disubmit dan disimpan.',
+                        confirmButtonText: 'Lanjut Share WA'
+                    }).then(() => {
+                        generateWALink(result);
+                    });
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Gagal Menyimpan', text: 'Pesan dari server: ' + result.message });
+                }
+            } catch (error) {
+                Swal.fire({ 
+                    icon: 'error', 
+                    title: 'Terjadi Kesalahan', 
+                    text: 'Gagal mengirim data. Pastikan versi backend GAS sudah di-deploy dengan benar.' 
+                });
+            }
         }
 
+        // Format Pesan WhatsApp
         function generateWALink(data) {
             let text = `*REPORT PENYIMPANAN*%0A`;
-            text += `🏢 Store: ${data.store}%0A`;
-            text += `📦 Bahan: ${data.bahan}%0A%0A`;
-            text += `*Detail Report:*%0A`;
+            text += `🏢 Store: *${data.store}*%0A`;
+            text += `📅 Tanggal: ${new Date().toLocaleDateString('id-ID')}%0A%0A`;
             
-            data.data.forEach((item, index) => {
-                text += `${index + 1}. ${item.detail} : %0A${item.url}%0A%0A`;
+            // Kelompokkan berdasarkan bahan
+            let groupedData = {};
+            data.data.forEach(item => {
+                if(!groupedData[item.bahan]) groupedData[item.bahan] = [];
+                groupedData[item.bahan].push(item);
             });
+
+            // Susun teks per kelompok
+            for (const [bahan, details] of Object.entries(groupedData)) {
+                text += `📦 *${bahan}*%0A`;
+                details.forEach((item, index) => {
+                    text += `${index + 1}. ${item.detail} : %0A${item.url}%0A`;
+                });
+                text += `%0A`;
+            }
 
             const waBtn = document.getElementById('wa-btn');
             waBtn.href = `https://wa.me/?text=${text}`;
-            waBtn.style.display = 'block';
+            waBtn.style.display = 'flex';
             document.getElementById('submit-btn').style.display = 'none';
         }
     </script>
