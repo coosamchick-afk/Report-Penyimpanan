@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Penyimpanan</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 500px; margin: auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        select, input[type="file"] { width: 100%; padding: 10px; margin-bottom: 10px; }
+        .detail-item { background: #f9f9f9; padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 5px; }
+        button { background: #007bff; color: white; border: none; padding: 12px; width: 100%; cursor: pointer; border-radius: 5px; font-size: 16px; }
+        button:hover { background: #0056b3; }
+        #wa-btn { background: #25D366; display: none; margin-top: 15px; text-align: center; text-decoration: none; padding: 12px; border-radius: 5px; color: white; font-weight: bold; }
+        #progress-container { width: 100%; background: #e0e0e0; border-radius: 5px; margin-top: 15px; display: none; }
+        #progress-bar { width: 0%; height: 20px; background: #4caf50; border-radius: 5px; text-align: center; color: white; line-height: 20px; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+    <h2>Form Report Penyimpanan</h2>
+
+    <div class="form-group">
+        <label for="store">Asal Store:</label>
+        <select id="store" required>
+            <option value="">-- Pilih Store --</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="bahan">Bahan:</label>
+        <select id="bahan" required>
+            <option value="">-- Pilih Bahan --</option>
+        </select>
+    </div>
+
+    <div id="details-container"></div>
+
+    <div id="progress-container">
+        <div id="progress-bar">0%</div>
+    </div>
+
+    <button id="submit-btn" style="display:none;" onclick="submitReport()">Submit Report</button>
+    <a id="wa-btn" href="#" target="_blank">Share ke WhatsApp</a>
+
+    <script>
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbwaCh4hpe7BpWg3jyy-dWY900N2td-V-RQnl0Ax9ehGifFyVIw9c7x_Bepz53F_tC4i/exec'; // <-- GANTI DENGAN URL WEB APP ANDA
+        let bahanData = [];
+
+        // Load awal data Store dan Bahan
+        window.onload = async function() {
+            try {
+                const storeRes = await fetch(GAS_URL + '?action=getStores');
+                const stores = await storeRes.json();
+                stores.forEach(s => {
+                    document.getElementById('store').innerHTML += `<option value="${s}">${s}</option>`;
+                });
+
+                const bahanRes = await fetch(GAS_URL + '?action=getBahan');
+                bahanData = await bahanRes.json();
+                bahanData.forEach((b, index) => {
+                    document.getElementById('bahan').innerHTML += `<option value="${index}">${b.bahan}</option>`;
+                });
+            } catch (err) {
+                alert('Gagal memuat data dari server.');
+            }
+        };
+
+        // Render input foto berdasarkan detail bahan yang dipilih
+        document.getElementById('bahan').addEventListener('change', function() {
+            const container = document.getElementById('details-container');
+            const submitBtn = document.getElementById('submit-btn');
+            container.innerHTML = '';
+            
+            if (this.value === "") {
+                submitBtn.style.display = 'none';
+                return;
+            }
+
+            const selectedBahan = bahanData[this.value];
+            selectedBahan.details.forEach((detail, i) => {
+                container.innerHTML += `
+                    <div class="detail-item">
+                        <label>${detail}</label>
+                        <!-- capture="environment" untuk langsung membuka kamera HP -->
+                        <input type="file" id="file_${i}" accept="image/*" capture="environment" required>
+                    </div>
+                `;
+            });
+            submitBtn.style.display = 'block';
+        });
+
+        // Fungsi kompresi gambar (Client-side)
+        function compressImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800; // Resize resolusi
+                        const scaleSize = MAX_WIDTH / img.width;
+                        canvas.width = MAX_WIDTH;
+                        canvas.height = img.height * scaleSize;
+                        
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        
+                        // Kompresi ke format JPEG kualitas 60%
+                        const base64 = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
+                        resolve(base64);
+                    }
+                    img.src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function submitReport() {
+            const store = document.getElementById('store').value;
+            const bahanIndex = document.getElementById('bahan').value;
+            if (!store || bahanIndex === "") return alert("Mohon lengkapi Store dan Bahan!");
+
+            const selectedBahan = bahanData[bahanIndex];
+            const reports = [];
+
+            // Proses semua file dan kompresi
+            for (let i = 0; i < selectedBahan.details.length; i++) {
+                const fileInput = document.getElementById(`file_${i}`);
+                if (!fileInput.files[0]) return alert(`Foto untuk "${selectedBahan.details[i]}" wajib diisi!`);
+                
+                const base64Str = await compressImage(fileInput.files[0]);
+                reports.push({
+                    detail: selectedBahan.details[i],
+                    imageBase64: base64Str,
+                    filename: `Report_${store}_${selectedBahan.bahan}_${i}.jpg`
+                });
+            }
+
+            const payload = {
+                store: store,
+                bahan: selectedBahan.bahan,
+                reports: reports
+            };
+
+            // Setup Progress Bar menggunakan XMLHttpRequest (karena fetch API tidak mendukung upload progress natively)
+            const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('progress-bar');
+            progressContainer.style.display = 'block';
+            document.getElementById('submit-btn').disabled = true;
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', GAS_URL, true);
+            xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8'); // GAS butuh text/plain untuk postData.contents
+
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    progressBar.style.width = percentComplete + '%';
+                    progressBar.innerText = percentComplete + '%';
+                }
+            };
+
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.status === 'success') {
+                        alert("Report Berhasil Disubmit!");
+                        generateWALink(response);
+                    } else {
+                        alert("Error: " + response.message);
+                    }
+                }
+                document.getElementById('submit-btn').disabled = false;
+            };
+
+            xhr.onerror = function() {
+                alert("Terjadi kesalahan saat submit.");
+                document.getElementById('submit-btn').disabled = false;
+            };
+
+            xhr.send(JSON.stringify(payload));
+        }
+
+        function generateWALink(data) {
+            let text = `*REPORT PENYIMPANAN*%0A`;
+            text += `🏢 Store: ${data.store}%0A`;
+            text += `📦 Bahan: ${data.bahan}%0A%0A`;
+            text += `*Detail Report:*%0A`;
+            
+            data.data.forEach((item, index) => {
+                text += `${index + 1}. ${item.detail} : %0A${item.url}%0A%0A`;
+            });
+
+            const waBtn = document.getElementById('wa-btn');
+            waBtn.href = `https://wa.me/?text=${text}`;
+            waBtn.style.display = 'block';
+            document.getElementById('submit-btn').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
