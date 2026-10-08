@@ -35,17 +35,18 @@
     </div>
 
     <script>
-        let isUploading = false;
-
-window.addEventListener('beforeunload', function (e) {
-    if (isUploading) {
-        e.preventDefault();
-        e.returnValue = ''; // Memunculkan peringatan bawaan browser saat tab akan ditutup
-    }
-});
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbwaCh4hpe7BpWg3jyy-dWY900N2td-V-RQnl0Ax9ehGifFyVIw9c7x_Bepz53F_tC4i/exec'; // <-- GANTI DENGAN URL WEB APP GAS ANDA
         let bahanData = [];
+        // 1. Variabel status untuk mencegah tab ditutup
+    let isUploading = false;
 
+    window.addEventListener('beforeunload', function (e) {
+        if (isUploading) {
+            e.preventDefault();
+            e.returnValue = ''; // Memunculkan peringatan browser bawaan
+        }
+    });
+         // 2. Load awal data store dan bahan
         window.onload = async function() {
             try {
                 Swal.fire({
@@ -128,7 +129,6 @@ window.addEventListener('beforeunload', function (e) {
                 reader.readAsDataURL(file);
             });
         }
-
         async function submitReport() {
     const store = document.getElementById('store').value;
     if (!store) return Swal.fire({ icon: 'warning', title: 'Oops!', text: 'Pilih Asal Store terlebih dahulu.' });
