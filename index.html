@@ -1,217 +1,262 @@
-<script>
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbwaCh4hpe7BpWg3jyy-dWY900N2td-V-RQnl0Ax9ehGifFyVIw9c7x_Bepz53F_tC4i/exec'; // <-- GANTI DENGAN URL WEB APP GAS ANDA
-    let bahanData = [];
-    
-    // 1. Variabel status untuk mencegah tab ditutup
-    let isUploading = false;
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Report Penyimpanan</title>
+    <!-- Library CSS dan Pop-up -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="text-gray-800 antialiased font-sans bg-gray-100">
 
-    window.addEventListener('beforeunload', function (e) {
-        if (isUploading) {
-            e.preventDefault();
-            e.returnValue = ''; // Memunculkan peringatan browser bawaan
-        }
-    });
-
-    // 2. Load awal data store dan bahan
-    window.onload = async function() {
-        try {
-            Swal.fire({
-                title: 'Memuat Data',
-                text: 'Sedang mensinkronisasi data dari server...',
-                allowOutsideClick: false,
-                didOpen: () => { Swal.showLoading(); }
-            });
-
-            const [storeRes, bahanRes] = await Promise.all([
-                fetch(GAS_URL + '?action=getStores'),
-                fetch(GAS_URL + '?action=getBahan')
-            ]);
-
-            const stores = await storeRes.json();
-            const storeSelect = document.getElementById('store');
-            storeSelect.innerHTML = '<option value="">-- Pilih Store --</option>';
-            stores.forEach(s => { storeSelect.innerHTML += `<option value="${s}">${s}</option>`; });
-
-            bahanData = await bahanRes.json();
-            renderBahan();
-            Swal.close();
-
-        } catch (err) {
-            Swal.fire({ icon: 'error', title: 'Gagal', text: 'Gagal memuat data dari server.' });
-        }
-    };
-
-    // 3. Render HTML bahan
-    function renderBahan() {
-        const container = document.getElementById('bahan-container');
-        let html = '';
+    <!-- Container Utama -->
+    <div class="max-w-3xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         
-        if(bahanData.length === 0) return;
-
-        bahanData.forEach((b, bIdx) => {
-            html += `
-            <div class="bg-white p-5 rounded-lg shadow border border-gray-100">
-                <h3 class="font-bold text-lg text-blue-800 border-b-2 border-blue-100 pb-2 mb-4">📦 ${b.bahan}</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+        <!-- Header & Form Store -->
+        <div class="bg-white shadow rounded-lg mb-6 p-6 border-t-4 border-blue-600">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Form Report Penyimpanan</h2>
+            <p class="text-gray-500 text-sm mb-4">Harap lengkapi semua foto detail untuk setiap bahan.</p>
             
-            b.details.forEach((detail, dIdx) => {
-                html += `
-                <div class="bg-gray-50 p-4 rounded-md border border-gray-200">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">📸 ${detail}</label>
-                    <input type="file" id="file_${bIdx}_${dIdx}" accept="image/*" capture="environment" 
-                           class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 transition">
-                </div>`;
-            });
-            
-            html += `</div></div>`;
-        });
-        
-        container.innerHTML = html;
-        document.getElementById('submit-btn').style.display = 'block';
-    }
+            <div class="mb-4">
+                <label for="store" class="block text-sm font-semibold text-gray-700 mb-2">Asal Store</label>
+                <select id="store" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
+                    <option value="">-- Sedang memuat data store... --</option>
+                </select>
+            </div>
+        </div>
 
-    // 4. Proses kompresi gambar
-    function compressImage(file) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 800; 
-                    let scaleSize = MAX_WIDTH / img.width;
-                    if(scaleSize > 1) scaleSize = 1; 
-                    
-                    canvas.width = img.width * scaleSize;
-                    canvas.height = img.height * scaleSize;
-                    
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    
-                    const base64 = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
-                    resolve(base64);
-                }
-                img.src = e.target.result;
+        <!-- Tempat Foto Bahan Muncul -->
+        <div id="bahan-container" class="space-y-6"></div>
+
+        <!-- Tombol Aksi -->
+        <div class="mt-8 mb-12">
+            <button id="submit-btn" onclick="submitReport()" style="display:none;" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-300">
+                Submit Report Penyimpanan
+            </button>
+            <a id="wa-btn" href="#" target="_blank" style="display:none;" class="w-full mt-4 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow-md text-center transition duration-300 flex items-center justify-center">
+                Kirim Laporan via WhatsApp
+            </a>
+        </div>
+    </div>
+
+    <!-- LOGIKANYA DI SINI -->
+    <script>
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbwaCh4hpe7BpWg3jyy-dWY900N2td-V-RQnl0Ax9ehGifFyVIw9c7x_Bepz53F_tC4i/exec'; // <-- GANTI DENGAN URL WEB APP GAS ANDA
+        let bahanData = [];
+        let isUploading = false; // Pelindung halaman
+
+        // 1. Peringatan Jangan Tutup Tab
+        window.addEventListener('beforeunload', function (e) {
+            if (isUploading) {
+                e.preventDefault();
+                e.returnValue = ''; 
             }
-            reader.readAsDataURL(file);
-        });
-    }
-
-    // 5. Proses submit form
-    async function submitReport() {
-        const store = document.getElementById('store').value;
-        if (!store) return Swal.fire({ icon: 'warning', title: 'Oops!', text: 'Pilih Asal Store terlebih dahulu.' });
-
-        let filesToUpload = [];
-        for (let bIdx = 0; bIdx < bahanData.length; bIdx++) {
-            const b = bahanData[bIdx];
-            for (let dIdx = 0; dIdx < b.details.length; dIdx++) {
-                const fileInput = document.getElementById(`file_${bIdx}_${dIdx}`);
-                if (!fileInput.files[0]) {
-                    return Swal.fire({ icon: 'warning', title: 'Belum Lengkap', text: `Foto untuk detail "${b.details[dIdx]}" pada bahan ${b.bahan} belum diisi!` });
-                }
-                filesToUpload.push({
-                    bahan: b.bahan,
-                    detail: b.details[dIdx],
-                    file: fileInput.files[0]
-                });
-            }
-        }
-
-        const totalFiles = filesToUpload.length;
-        let successUploads = [];
-        
-        Swal.fire({
-            title: 'Sedang Mengunggah...',
-            html: `
-                <div class="w-full bg-gray-200 rounded-full h-4 dark:bg-gray-700 mt-4 mb-2">
-                    <div id="swal-progress-bar" class="bg-blue-600 h-4 rounded-full transition-all duration-300" style="width: 0%"></div>
-                </div>
-                <p id="swal-progress-text" class="text-sm font-semibold text-gray-600">0 dari ${totalFiles} foto terkirim</p>
-                <p class="text-xs text-red-500 mt-2 font-bold">⚠️ JANGAN TUTUP HALAMAN INI ⚠️</p>
-            `,
-            allowOutsideClick: false,
-            showConfirmButton: false
         });
 
-        // Kunci browser agar memunculkan notif jika tidak sengaja tertutup
-        isUploading = true;
-
-        for (let i = 0; i < totalFiles; i++) {
+        // 2. Tarik Data Otomatis Saat Web Dibuka
+        window.onload = async function() {
             try {
-                const item = filesToUpload[i];
-                document.getElementById('swal-progress-text').innerText = `Memproses foto ${i + 1} dari ${totalFiles}...`;
-                
-                const base64Str = await compressImage(item.file);
-                
-                const payload = {
-                    store: store,
-                    bahan: item.bahan,
-                    detail: item.detail,
-                    imageBase64: base64Str,
-                    filename: `Report_${store}_${item.bahan}_${i}.jpg`
-                };
+                Swal.fire({
+                    title: 'Memuat Data',
+                    text: 'Sedang mensinkronisasi data dari server...',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
 
-                document.getElementById('swal-progress-text').innerText = `Mengunggah foto ${i + 1} dari ${totalFiles}...`;
+                const [storeRes, bahanRes] = await Promise.all([
+                    fetch(GAS_URL + '?action=getStores'),
+                    fetch(GAS_URL + '?action=getBahan')
+                ]);
 
-                const response = await fetch(GAS_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
+                const stores = await storeRes.json();
+                const storeSelect = document.getElementById('store');
+                storeSelect.innerHTML = '<option value="">-- Pilih Store --</option>';
+                stores.forEach(s => { storeSelect.innerHTML += `<option value="${s}">${s}</option>`; });
+
+                bahanData = await bahanRes.json();
+                renderBahan();
+                Swal.close();
+
+            } catch (err) {
+                console.error(err);
+                Swal.fire({ icon: 'error', title: 'Gagal', text: 'Gagal memuat data dari server. Pastikan URL GAS benar.' });
+            }
+        };
+
+        // 3. Tampilkan Form Foto 
+        function renderBahan() {
+            const container = document.getElementById('bahan-container');
+            let html = '';
+            
+            if(bahanData.length === 0) return;
+
+            bahanData.forEach((b, bIdx) => {
+                html += `
+                <div class="bg-white p-5 rounded-lg shadow border border-gray-100">
+                    <h3 class="font-bold text-lg text-blue-800 border-b-2 border-blue-100 pb-2 mb-4">📦 ${b.bahan}</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+                
+                b.details.forEach((detail, dIdx) => {
+                    html += `
+                    <div class="bg-gray-50 p-4 rounded-md border border-gray-200">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">📸 ${detail}</label>
+                        <input type="file" id="file_${bIdx}_${dIdx}" accept="image/*" capture="environment" 
+                               class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 transition">
+                    </div>`;
                 });
                 
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    successUploads.push(result);
-                    let percent = Math.round(((i + 1) / totalFiles) * 100);
-                    document.getElementById('swal-progress-bar').style.width = percent + '%';
-                    document.getElementById('swal-progress-text').innerText = `${i + 1} dari ${totalFiles} foto terkirim (${percent}%)`;
-                } else {
-                    throw new Error(result.message);
-                }
-            } catch (error) {
-                // Lepaskan kunci jika terjadi error agar user bisa merefresh
-                isUploading = false;
-                return Swal.fire({ icon: 'error', title: 'Upload Terhenti', text: `Terjadi kendala pada file ${i + 1}. Pesan: ${error.message}` });
-            }
-        }
-
-        // Lepaskan kunci karena proses sukses 100%
-        isUploading = false;
-
-        Swal.fire({
-            icon: 'success',
-            title: 'Berhasil!',
-            text: 'Semua foto berhasil diunggah ke server.',
-            confirmButtonText: 'Buat Pesan WA'
-        }).then(() => {
-            generateWALink(store, successUploads);
-        });
-    }
-
-    // 6. Buat format WhatsApp
-    function generateWALink(storeName, dataArray) {
-        let text = `*REPORT PENYIMPANAN*%0A`;
-        text += `✅ Store: *${storeName}*%0A`;
-        text += `✅ Tanggal: ${new Date().toLocaleDateString('id-ID')}%0A%0A`;
-        
-        let groupedData = {};
-        dataArray.forEach(item => {
-            if(!groupedData[item.bahan]) groupedData[item.bahan] = [];
-            groupedData[item.bahan].push(item);
-        });
-
-        for (const [bahan, details] of Object.entries(groupedData)) {
-            text += `✅ *${bahan}*%0A`;
-            details.forEach((item, index) => {
-                text += `${index + 1}. ${item.detail} : %0A${item.url}%0A`;
+                html += `</div></div>`;
             });
-            text += `%0A`;
+            
+            container.innerHTML = html;
+            document.getElementById('submit-btn').style.display = 'block';
         }
 
-        const waBtn = document.getElementById('wa-btn');
-        waBtn.href = `https://wa.me/?text=${text}`;
-        waBtn.style.display = 'flex';
-        document.getElementById('submit-btn').style.display = 'none';
-    }
-</script>
+        // 4. Perkecil Gambar Otomatis
+        function compressImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800; 
+                        let scaleSize = MAX_WIDTH / img.width;
+                        if(scaleSize > 1) scaleSize = 1; 
+                        
+                        canvas.width = img.width * scaleSize;
+                        canvas.height = img.height * scaleSize;
+                        
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        
+                        const base64 = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
+                        resolve(base64);
+                    }
+                    img.src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // 5. Proses Upload
+        async function submitReport() {
+            const store = document.getElementById('store').value;
+            if (!store) return Swal.fire({ icon: 'warning', title: 'Oops!', text: 'Pilih Asal Store terlebih dahulu.' });
+
+            let filesToUpload = [];
+            for (let bIdx = 0; bIdx < bahanData.length; bIdx++) {
+                const b = bahanData[bIdx];
+                for (let dIdx = 0; dIdx < b.details.length; dIdx++) {
+                    const fileInput = document.getElementById(`file_${bIdx}_${dIdx}`);
+                    if (!fileInput.files[0]) {
+                        return Swal.fire({ icon: 'warning', title: 'Belum Lengkap', text: `Foto untuk detail "${b.details[dIdx]}" pada bahan ${b.bahan} belum diisi!` });
+                    }
+                    filesToUpload.push({
+                        bahan: b.bahan,
+                        detail: b.details[dIdx],
+                        file: fileInput.files[0]
+                    });
+                }
+            }
+
+            const totalFiles = filesToUpload.length;
+            let successUploads = [];
+            
+            Swal.fire({
+                title: 'Sedang Mengunggah...',
+                html: `
+                    <div class="w-full bg-gray-200 rounded-full h-4 mt-4 mb-2">
+                        <div id="swal-progress-bar" class="bg-blue-600 h-4 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <p id="swal-progress-text" class="text-sm font-semibold text-gray-600">0 dari ${totalFiles} foto terkirim</p>
+                    <p class="text-xs text-red-500 mt-2 font-bold">⚠️ JANGAN TUTUP HALAMAN INI ⚠️</p>
+                `,
+                allowOutsideClick: false,
+                showConfirmButton: false
+            });
+
+            // Aktifkan mode pelindung (jangan tutup tab)
+            isUploading = true;
+
+            for (let i = 0; i < totalFiles; i++) {
+                try {
+                    const item = filesToUpload[i];
+                    document.getElementById('swal-progress-text').innerText = `Memproses foto ${i + 1} dari ${totalFiles}...`;
+                    
+                    const base64Str = await compressImage(item.file);
+                    
+                    const payload = {
+                        store: store,
+                        bahan: item.bahan,
+                        detail: item.detail,
+                        imageBase64: base64Str,
+                        filename: `Report_${store}_${item.bahan}_${i}.jpg`
+                    };
+
+                    document.getElementById('swal-progress-text').innerText = `Mengunggah foto ${i + 1} dari ${totalFiles}...`;
+
+                    const response = await fetch(GAS_URL, {
+                        method: 'POST',
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        successUploads.push(result);
+                        let percent = Math.round(((i + 1) / totalFiles) * 100);
+                        document.getElementById('swal-progress-bar').style.width = percent + '%';
+                        document.getElementById('swal-progress-text').innerText = `${i + 1} dari ${totalFiles} foto terkirim (${percent}%)`;
+                    } else {
+                        throw new Error(result.message);
+                    }
+                } catch (error) {
+                    // Matikan pelindung tab jika terjadi error agar bisa refresh
+                    isUploading = false;
+                    return Swal.fire({ icon: 'error', title: 'Upload Terhenti', text: `Terjadi kendala pada file ${i + 1}. Pesan: ${error.message}` });
+                }
+            }
+
+            // Matikan pelindung tab karena sudah berhasil 100%
+            isUploading = false;
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil!',
+                text: 'Semua foto berhasil diunggah ke server.',
+                confirmButtonText: 'Buat Pesan WA'
+            }).then(() => {
+                generateWALink(store, successUploads);
+            });
+        }
+
+        // 6. Buat Teks WhatsApp
+        function generateWALink(storeName, dataArray) {
+            let text = `*REPORT PENYIMPANAN*%0A`;
+            text += `🏢 Store: *${storeName}*%0A`;
+            text += `📅 Tanggal: ${new Date().toLocaleDateString('id-ID')}%0A%0A`;
+            
+            let groupedData = {};
+            dataArray.forEach(item => {
+                if(!groupedData[item.bahan]) groupedData[item.bahan] = [];
+                groupedData[item.bahan].push(item);
+            });
+
+            for (const [bahan, details] of Object.entries(groupedData)) {
+                text += `📦 *${bahan}*%0A`;
+                details.forEach((item, index) => {
+                    text += `${index + 1}. ${item.detail} : %0A${item.url}%0A`;
+                });
+                text += `%0A`;
+            }
+
+            const waBtn = document.getElementById('wa-btn');
+            waBtn.href = `https://wa.me/?text=${text}`;
+            waBtn.style.display = 'flex';
+            document.getElementById('submit-btn').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
